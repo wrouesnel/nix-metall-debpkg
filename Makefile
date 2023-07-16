@@ -48,6 +48,10 @@ else
   GLOBAL_CXXFLAGS += -O0 -U_FORTIFY_SOURCE
 endif
 
+GLOBAL_CFLAGS   += $(CPPFLAGS)
+GLOBAL_CXXFLAGS += $(CPPFLAGS)
+GLOBAL_LDFLAGS  += $(LDFLAGS)
+
 include mk/lib.mk
 
 GLOBAL_CXXFLAGS += -g -Wall -include config.h -std=c++2a -I src
