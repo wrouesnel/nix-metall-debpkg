@@ -174,22 +174,24 @@ doc/manual/generated/man1/nix3-manpages: $(d)/src/command-ref/new-cli
 	@touch $@
 
 $(docdir)/manual/index.html: $(MANUAL_SRCS) $(d)/book.toml $(d)/anchors.jq $(d)/custom.css $(d)/src/SUMMARY.md $(d)/src/command-ref/new-cli $(d)/src/contributing/experimental-feature-descriptions.md $(d)/src/command-ref/conf-file.md $(d)/src/language/builtins.md $(d)/src/language/builtin-constants.md
-	$(trace-gen) \
-		tmp="$$(mktemp -d)"; \
-		cp -r doc/manual "$$tmp"; \
-		find "$$tmp" -name '*.md' | while read -r file; do \
-			$(call process-includes,$$file,$$file); \
-		done; \
-		find "$$tmp" -name '*.md' | while read -r file; do \
-			docroot="$$(realpath --relative-to="$$(dirname "$$file")" $$tmp/manual/src)"; \
-			sed -i "s,@docroot@,$$docroot,g" "$$file"; \
-		done; \
-		set -euo pipefail; \
-		RUST_LOG=warn mdbook build "$$tmp/manual" -d $(DESTDIR)$(docdir)/manual.tmp 2>&1 \
-			| { grep -Fv "because fragment resolution isn't implemented" || :; }; \
-		rm -rf "$$tmp/manual"
-	@rm -rf $(DESTDIR)$(docdir)/manual
-	@mv $(DESTDIR)$(docdir)/manual.tmp/html $(DESTDIR)$(docdir)/manual
-	@rm -rf $(DESTDIR)$(docdir)/manual.tmp
+	# $(trace-gen) \
+	# 	tmp="$$(mktemp -d)"; \
+	# 	cp -r doc/manual "$$tmp"; \
+	# 	find "$$tmp" -name '*.md' | while read -r file; do \
+	# 		$(call process-includes,$$file,$$file); \
+	# 	done; \
+	# 	find "$$tmp" -name '*.md' | while read -r file; do \
+	# 		docroot="$$(realpath --relative-to="$$(dirname "$$file")" $$tmp/manual/src)"; \
+	# 		sed -i "s,@docroot@,$$docroot,g" "$$file"; \
+	# 	done; \
+	# 	set -euo pipefail; \
+	# 	RUST_LOG=warn mdbook build "$$tmp/manual" -d $(DESTDIR)$(docdir)/manual.tmp 2>&1 \
+	# 		| { grep -Fv "because fragment resolution isn't implemented" || :; }; \
+	# 	rm -rf "$$tmp/manual"
+	# @rm -rf $(DESTDIR)$(docdir)/manual
+	# @mv $(DESTDIR)$(docdir)/manual.tmp/html $(DESTDIR)$(docdir)/manual
+	# @rm -rf $(DESTDIR)$(docdir)/manual.tmp
+	@echo "skipping mdbook since mdbook is not yet packaged for Debian, see:"
+	@echo "https://github.com/NixOS/nixpkgs/blob/master/pkgs/tools/text/mdbook/default.nix"
 
 endif
