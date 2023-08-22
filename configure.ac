@@ -366,7 +366,7 @@ AC_CHECK_FUNCS([strsignal posix_fallocate sysconf])
 AC_ARG_WITH(sandbox-shell, AS_HELP_STRING([--with-sandbox-shell=PATH],[path of a statically-linked shell to use as /bin/sh in sandboxes]),
   sandbox_shell=$withval)
 AC_SUBST(sandbox_shell)
-if test ${cross_compiling:-no} = no && ! test -z ${sandbox_shell+x}; then
+if test ${cross_compiling:-no} = no && test -n "${sandbox_shell}"; then
   AC_MSG_CHECKING([whether sandbox-shell has the standalone feature])
   # busybox shell sometimes allows executing other busybox applets,
   # even if they are not in the path, breaking our sandbox
