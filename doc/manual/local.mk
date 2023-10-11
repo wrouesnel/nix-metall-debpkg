@@ -21,7 +21,8 @@ man-pages += $(foreach subcommand, \
 	$(filter-out %opt-common.md %env-common.md, $(wildcard $(d)/src/command-ref/nix-*/*.md)), \
 	$(d)/$(subst /,-,$(subst $(d)/src/command-ref/,,$(subst .md,.1,$(subcommand)))))
 
-clean-files += $(d)/*.1 $(d)/*.5 $(d)/*.8
+clean-files += $(d)/*.1 $(d)/generated/man1/*.1 $(d)/*.5 $(d)/*.8
+clean-files += $(d)/*.json
 
 # Provide a dummy environment for nix, so that it will not access files outside the macOS sandbox.
 # Set cores to 0 because otherwise nix show-config resolves the cores based on the current machine
@@ -101,10 +102,14 @@ $(d)/src/command-ref/new-cli: $(d)/nix.json $(d)/utils.nix $(d)/generate-manpage
 	$(trace-gen) $(nix-eval) --write-to $@.tmp --expr 'import doc/manual/generate-manpage.nix true (builtins.readFile $<)'
 	@mv $@.tmp $@
 
+clean-files += $(d)/src/command-ref/new-cli/*.md
+
 $(d)/src/command-ref/conf-file.md: $(d)/conf-file.json $(d)/utils.nix $(d)/src/command-ref/conf-file-prefix.md $(d)/src/command-ref/experimental-features-shortlist.md $(nix_DIR)/nix
 	@cat doc/manual/src/command-ref/conf-file-prefix.md > $@.tmp
 	$(trace-gen) $(nix-eval) --expr '(import doc/manual/utils.nix).showSettings { inlineHTML = true; } (builtins.fromJSON (builtins.readFile $<))' >> $@.tmp;
 	@mv $@.tmp $@
+
+clean-files += $(d)/src/command-ref/conf-file.md
 
 $(d)/nix.json: $(nix_DIR)/nix
 	$(trace-gen) $(dummy-env) $(nix_DIR)/nix __dump-cli > $@.tmp
@@ -114,19 +119,27 @@ $(d)/conf-file.json: $(nix_DIR)/nix
 	$(trace-gen) $(dummy-env) $(nix_DIR)/nix show-config --json --experimental-features nix-command > $@.tmp
 	@mv $@.tmp $@
 
+clean-files += $(d)/conf-file.json
+
 $(d)/src/contributing/experimental-feature-descriptions.md: $(d)/xp-features.json $(d)/utils.nix $(d)/generate-xp-features.nix $(nix_DIR)/nix
 	@rm -rf $@ $@.tmp
 	$(trace-gen) $(nix-eval) --write-to $@.tmp --expr 'import doc/manual/generate-xp-features.nix (builtins.fromJSON (builtins.readFile $<))'
 	@mv $@.tmp $@
+
+clean-files += $(d)/src/contributing/experimental-feature-descriptions.md
 
 $(d)/src/command-ref/experimental-features-shortlist.md: $(d)/xp-features.json $(d)/utils.nix $(d)/generate-xp-features-shortlist.nix $(nix_DIR)/nix
 	@rm -rf $@ $@.tmp
 	$(trace-gen) $(nix-eval) --write-to $@.tmp --expr 'import doc/manual/generate-xp-features-shortlist.nix (builtins.fromJSON (builtins.readFile $<))'
 	@mv $@.tmp $@
 
+clean-files += $(d)/src/command-ref/experimental-features-shortlist.md
+
 $(d)/xp-features.json: $(nix_DIR)/nix
 	$(trace-gen) $(dummy-env) NIX_PATH=nix/corepkgs=corepkgs $(nix_DIR)/nix __dump-xp-features > $@.tmp
 	@mv $@.tmp $@
+
+clean-files += $(d)/xp-features.json
 
 $(d)/src/language/builtins.md: $(d)/language.json $(d)/generate-builtins.nix $(d)/src/language/builtins-prefix.md $(nix_DIR)/nix
 	@cat doc/manual/src/language/builtins-prefix.md > $@.tmp
@@ -134,15 +147,21 @@ $(d)/src/language/builtins.md: $(d)/language.json $(d)/generate-builtins.nix $(d
 	@cat doc/manual/src/language/builtins-suffix.md >> $@.tmp
 	@mv $@.tmp $@
 
+clean-files += $(d)/src/language/builtins.md
+
 $(d)/src/language/builtin-constants.md: $(d)/language.json $(d)/generate-builtin-constants.nix $(d)/src/language/builtin-constants-prefix.md $(nix_DIR)/nix
 	@cat doc/manual/src/language/builtin-constants-prefix.md > $@.tmp
 	$(trace-gen) $(nix-eval) --expr 'import doc/manual/generate-builtin-constants.nix (builtins.fromJSON (builtins.readFile $<)).constants' >> $@.tmp;
 	@cat doc/manual/src/language/builtin-constants-suffix.md >> $@.tmp
 	@mv $@.tmp $@
 
+clean-files += $(d)/src/language/builtin-constants.md
+
 $(d)/language.json: $(nix_DIR)/nix
 	$(trace-gen) $(dummy-env) NIX_PATH=nix/corepkgs=corepkgs $(nix_DIR)/nix __dump-language > $@.tmp
 	@mv $@.tmp $@
+
+clean-files += $(d)/language.json
 
 # Generate the HTML manual.
 .PHONY: manual-html
