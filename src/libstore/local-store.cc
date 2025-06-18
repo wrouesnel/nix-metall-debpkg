@@ -1704,11 +1704,11 @@ static void makeMutable(const Path & path)
 
     /* Silently ignore errors getting/setting the immutable flag so
        that we work correctly on filesystems that don't support it. */
-    if (ioctl(fd, FS_IOC_GETFLAGS, &flags)) return;
+    if (ioctl(fd.get(), FS_IOC_GETFLAGS, &flags)) return;
     old = flags;
     flags &= ~FS_IMMUTABLE_FL;
     if (old == flags) return;
-    if (ioctl(fd, FS_IOC_SETFLAGS, &flags)) return;
+    if (ioctl(fd.get(), FS_IOC_SETFLAGS, &flags)) return;
 }
 
 /* Upgrade from schema 6 (Nix 0.15) to schema 7 (Nix >= 1.3). */

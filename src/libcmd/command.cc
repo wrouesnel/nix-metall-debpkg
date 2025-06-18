@@ -115,6 +115,9 @@ ref<EvalState> EvalCommand::getEvalState()
             #if HAVE_BOEHMGC
             std::allocate_shared<EvalState>(traceable_allocator<EvalState>(),
                 searchPath, getEvalStore(), getStore())
+            #elif HAVE_METALL
+            std::allocate_shared<EvalState>(manager->get_allocator<EvalState>(),
+                searchPath, getEvalStore(), getStore())
             #else
             std::make_shared<EvalState>(
                 searchPath, getEvalStore(), getStore())

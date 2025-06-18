@@ -870,6 +870,10 @@ AutoCloseFD & AutoCloseFD::operator =(AutoCloseFD && that)
     return *this;
 }
 
+bool AutoCloseFD::operator ==(int that)
+{
+    return this->fd == that;
+}
 
 AutoCloseFD::~AutoCloseFD()
 {

@@ -11,7 +11,15 @@
 #include <variant>
 #include <vector>
 
+#if HAVE_METALL
+#include <metall/metall.hpp>
+#endif
+
 namespace nix {
+
+#if HAVE_METALL
+extern metall::manager* manager;
+#endif
 
 typedef std::list<std::string> Strings;
 typedef std::set<std::string> StringSet;

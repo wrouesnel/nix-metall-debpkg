@@ -28,6 +28,9 @@
 
 #include <cmath>
 
+#if HAVE_METALL
+#include <metall/metall.hpp>
+#endif
 
 namespace nix {
 
@@ -627,6 +630,8 @@ struct CompareValues
 
 #if HAVE_BOEHMGC
 typedef std::list<Value *, gc_allocator<Value *>> ValueList;
+// #elif HAVE_METALL
+// typedef std::list<Value *, metall::manager::allocator_type<Value *>> ValueList;
 #else
 typedef std::list<Value *> ValueList;
 #endif

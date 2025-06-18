@@ -18,7 +18,6 @@
 
 namespace nix {
 
-
 class Store;
 class EvalState;
 class StorePath;
@@ -96,6 +95,8 @@ struct Constant
 
 #if HAVE_BOEHMGC
     typedef std::map<std::string, Value *, std::less<std::string>, traceable_allocator<std::pair<const std::string, Value *> > > ValMap;
+// #elif HAVE_METALL
+//     typedef std::map<std::string, Value *, std::less<std::string>, metall::manager::allocator_type<std::pair<const std::string, Value *> >> ValMap;
 #else
     typedef std::map<std::string, Value *> ValMap;
 #endif
@@ -128,6 +129,10 @@ std::ostream & operator << (std::ostream & os, const ValueType t);
  */
 void initGC();
 
+/**
+ * Shutdown the custom allocator, if applicable.
+ */
+void shutdownGC();
 
 struct RegexCache;
 
@@ -292,6 +297,8 @@ private:
      */
 #if HAVE_BOEHMGC
     typedef std::map<SourcePath, Expr *, std::less<SourcePath>, traceable_allocator<std::pair<const SourcePath, Expr *>>> FileParseCache;
+// #elif HAVE_METALL
+//     typedef std::map<SourcePath, Expr *, std::less<SourcePath>, metall::manager::allocator_type<std::pair<const SourcePath, Expr *>>> FileParseCache;
 #else
     typedef std::map<SourcePath, Expr *> FileParseCache;
 #endif
@@ -302,6 +309,8 @@ private:
      */
 #if HAVE_BOEHMGC
     typedef std::map<SourcePath, Value, std::less<SourcePath>, traceable_allocator<std::pair<const SourcePath, Value>>> FileEvalCache;
+// #elif HAVE_METALL
+//     typedef std::map<SourcePath, Value, std::less<SourcePath>, metall::manager::allocator_type<std::pair<const SourcePath, Value>>> FileEvalCache;
 #else
     typedef std::map<SourcePath, Value> FileEvalCache;
 #endif
@@ -332,6 +341,7 @@ private:
      */
     std::shared_ptr<void *> env1AllocCache;
 #endif
+// No METALL implementation required
 
 public:
 
