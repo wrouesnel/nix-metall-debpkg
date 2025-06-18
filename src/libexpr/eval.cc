@@ -27,6 +27,7 @@
 
 #include <sys/resource.h>
 #include <nlohmann/json.hpp>
+#include <boost/filesystem.hpp>
 
 #if HAVE_BOEHMGC
 
@@ -39,17 +40,28 @@
 #include <boost/coroutine2/protected_fixedsize_stack.hpp>
 #include <boost/context/stack_context.hpp>
 
+#elif HAVE_METALL
+#include <metall/metall.hpp>
 #endif
 
 using json = nlohmann::json;
 
 namespace nix {
 
+#if HAVE_METALL
+/**
+ * Global manageer for the metall allocator is defined here
+ */
+metall::manager *manager;
+#endif
+
 static char * allocString(size_t size)
 {
     char * t;
 #if HAVE_BOEHMGC
     t = (char *) GC_MALLOC_ATOMIC(size);
+#elif HAVE_METALL
+    t = (char *) manager->allocate(size);
 #else
     t = (char *) malloc(size);
 #endif
@@ -63,6 +75,10 @@ static char * dupString(const char * s)
     char * t;
 #if HAVE_BOEHMGC
     t = GC_STRDUP(s);
+#elif HAVE_METALL
+    auto size = strlen(s)+1;
+    t = allocString(size);
+    memcpy(t, s, size);
 #else
     t = strdup(s);
 #endif
@@ -91,6 +107,8 @@ RootValue allocRootValue(Value * v)
 {
 #if HAVE_BOEHMGC
     return std::allocate_shared<Value *>(traceable_allocator<Value *>(), v);
+#elif HAVE_METALL
+    return std::allocate_shared<Value *>(manager->get_allocator<Value*>(), v);
 #else
     return std::make_shared<Value *>(v);
 #endif
@@ -329,7 +347,7 @@ class BoehmGCStackAllocator : public StackAllocator {
 static BoehmGCStackAllocator boehmGCStackAllocator;
 
 #endif
-
+// No METALL implementation needed right now
 
 static Symbol getName(const AttrName & name, EvalState & state, Env & env)
 {
@@ -359,8 +377,13 @@ public:
     };
 };
 #endif
+// No HAVE_METALL implementation needed
 
 static bool gcInitialised = false;
+
+#if HAVE_METALL
+static boost::filesystem::path diskCache;
+#endif
 
 void initGC()
 {
@@ -414,10 +437,26 @@ void initGC()
         debug("setting initial heap size to %1% bytes", size);
         GC_expand_hp(size);
     }
-
+#elif HAVE_METALL
+    diskCache = boost::filesystem::temp_directory_path() / boost::filesystem::unique_path("nix-eval-%%%%-%%%%-%%%%-%%%%");
+    boost::filesystem::create_directories(diskCache);
+    manager = new metall::manager(metall::create_only, diskCache.c_str());
 #endif
 
     gcInitialised = true;
+}
+
+void shutdownGC()
+{
+#if HAVE_METALL
+    /**
+     * Clean up the disk cache when exiting
+     */
+    if (!diskCache.empty())
+    {
+        boost::filesystem::remove_all(diskCache);
+    }
+#endif
 }
 
 
@@ -515,6 +554,7 @@ EvalState::EvalState(
     , valueAllocCache(std::allocate_shared<void *>(traceable_allocator<void *>(), nullptr))
     , env1AllocCache(std::allocate_shared<void *>(traceable_allocator<void *>(), nullptr))
 #endif
+    // No METALL implementation needed
     , baseEnv(allocEnv(128))
     , staticBaseEnv{std::make_shared<StaticEnv>(false, nullptr)}
 {
@@ -2494,6 +2534,7 @@ void EvalState::printStats()
     GC_word heapSize, totalBytes;
     GC_get_heap_usage_safe(&heapSize, 0, 0, 0, &totalBytes);
 #endif
+    // No METALL implementation needed right now
     if (showStats) {
         auto outPath = getEnv("NIX_SHOW_STATS_PATH").value_or("-");
         std::fstream fs;
@@ -2541,6 +2582,15 @@ void EvalState::printStats()
         topObj["gc"] = {
             {"heapSize", heapSize},
             {"totalBytes", totalBytes},
+        };
+#elif HAVE_METALL
+        topObj["metall"] = {
+            {"anonymous_objects", manager->get_num_anonymous_objects()},
+            {"named_objects", manager->get_num_named_objects()},
+            {"unique_objects", manager->get_num_unique_objects()},
+            {"max_size", manager->get_size()},
+            {"datastore_uuid", manager->get_uuid()},
+            {"version", metall::to_version_string(manager->get_version())}
         };
 #endif
 

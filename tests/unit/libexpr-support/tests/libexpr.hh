@@ -18,6 +18,7 @@ namespace nix {
             static void SetUpTestSuite() {
                 LibStoreTest::SetUpTestSuite();
                 initGC();
+                atexit(shutdownGC);
             }
 
         protected:

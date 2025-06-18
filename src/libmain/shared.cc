@@ -287,6 +287,8 @@ void printVersion(const std::string & programName)
         Strings cfg;
 #if HAVE_BOEHMGC
         cfg.push_back("gc");
+#elif HAVE_METALL
+        cfg.push_back("metall");
 #endif
         cfg.push_back("signed-caches");
         std::cout << "System type: " << settings.thisSystem << "\n";

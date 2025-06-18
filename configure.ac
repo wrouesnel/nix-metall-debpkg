@@ -134,7 +134,8 @@ AC_SUBST(storedir)
 # Note that AX_BOOST_BASE only exports *CPP* BOOST_CPPFLAGS, no CXX flags,
 # and CPPFLAGS are not passed to the C++ compiler automatically.
 # Thus we append the returned CPPFLAGS to the CXXFLAGS here.
-AX_BOOST_BASE([1.66], [CXXFLAGS="$BOOST_CPPFLAGS $CXXFLAGS"], [AC_MSG_ERROR([Nix requires boost.])])
+AX_BOOST_BASE([1.83], [CXXFLAGS="$BOOST_CPPFLAGS $CXXFLAGS"], [AC_MSG_ERROR([Nix requires boost.])])
+AX_BOOST_FILESYSTEM
 # For unknown reasons, setting this directly in the ACTION-IF-FOUND above
 # ends up with LDFLAGS being empty, so we set it afterwards.
 LDFLAGS="$BOOST_LDFLAGS $LDFLAGS"
@@ -288,7 +289,6 @@ if test "$gc" = yes; then
   AC_DEFINE(HAVE_BOEHMGC, 1, [Whether to use the Boehm garbage collector.])
 fi
 
-
 if test "$tests" = yes; then
 
 # Look for gtest.
@@ -317,6 +317,21 @@ AC_LINK_IFELSE([
 AC_LANG_POP(C++)
 
 fi
+
+# Whether to use the Metall allocator (note: for some reason this breaks rapidcheck tests above)
+AC_LANG_PUSH(C++)
+AC_ARG_ENABLE(metall, AS_HELP_STRING([--enable-metall],[enable metall allocator in the Nix expression evaluator [default=no]]),
+  metall=$enableval, metall=no)
+if test "$metall" = yes; then
+  PKG_CHECK_MODULES([METALL], [metall])
+  CXXFLAGS="$METALL_CFLAGS $CXXFLAGS"
+  AC_DEFINE(HAVE_METALL, 1, [Whether to use the Metall persistent memory allocator.])
+fi
+
+if test "$metall" = yes -a "$gc" = yes; then
+  AC_MSG_ERROR([--enable-gc and --enable-metall are mutually exclusive])
+fi
+AC_LANG_POP(C++)
 
 # Look for nlohmann/json.
 PKG_CHECK_MODULES([NLOHMANN_JSON], [nlohmann_json >= 3.9])

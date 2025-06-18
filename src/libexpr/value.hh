@@ -10,7 +10,10 @@
 
 #if HAVE_BOEHMGC
 #include <gc/gc_allocator.h>
+#elif HAVE_METALL
+#include <metall/metall.hpp>
 #endif
+
 #include <nlohmann/json_fwd.hpp>
 
 namespace nix {
@@ -453,6 +456,10 @@ public:
 typedef std::vector<Value *, traceable_allocator<Value *>> ValueVector;
 typedef std::map<Symbol, Value *, std::less<Symbol>, traceable_allocator<std::pair<const Symbol, Value *>>> ValueMap;
 typedef std::map<Symbol, ValueVector, std::less<Symbol>, traceable_allocator<std::pair<const Symbol, ValueVector>>> ValueVectorMap;
+// #elif HAVE_METALL
+// typedef std::vector<Value *, metall::manager::allocator_type<Value *>> ValueVector;
+// typedef std::map<Symbol, Value *, std::less<Symbol>, metall::manager::allocator_type<std::pair<const Symbol, Value *>>> ValueMap;
+// typedef std::map<Symbol, ValueVector, std::less<Symbol>, metall::manager::allocator_type<std::pair<const Symbol, ValueVector>>> ValueVectorMap;
 #else
 typedef std::vector<Value *> ValueVector;
 typedef std::map<Symbol, Value *> ValueMap;

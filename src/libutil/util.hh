@@ -337,6 +337,7 @@ public:
     ~AutoCloseFD();
     AutoCloseFD& operator =(const AutoCloseFD & fd) = delete;
     AutoCloseFD& operator =(AutoCloseFD&& fd);
+    bool operator ==(int fd);
     int get() const;
     explicit operator bool() const;
     int release();

@@ -7,6 +7,9 @@
 #include <string>
 #include <map>
 
+#if HAVE_METALL
+#include <metall/metall.hpp>
+#endif
 
 namespace nix {
 
@@ -14,7 +17,11 @@ namespace nix {
 struct DrvInfo
 {
 public:
+// #if HAVE_METALL
+//     typedef std::map<std::string, std::optional<StorePath>, std::less<StorePath>, metall::manager::allocator_type<std::pair<const std::string, std::optional<StorePath>>>> Outputs;
+// #else
     typedef std::map<std::string, std::optional<StorePath>> Outputs;
+// #endif
 
 private:
     EvalState * state;
@@ -83,6 +90,8 @@ public:
 
 #if HAVE_BOEHMGC
 typedef std::list<DrvInfo, traceable_allocator<DrvInfo>> DrvInfos;
+// #elif HAVE_METALL
+// typedef std::list<DrvInfo, metall::manager::allocator_type<DrvInfo>> DrvInfos;
 #else
 typedef std::list<DrvInfo> DrvInfos;
 #endif

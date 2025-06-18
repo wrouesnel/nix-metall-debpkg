@@ -313,6 +313,7 @@ void mainWrapped(int argc, char * * argv)
 
     initNix();
     initGC();
+    atexit(shutdownGC);
 
     #if __linux__
     if (getuid() == 0) {

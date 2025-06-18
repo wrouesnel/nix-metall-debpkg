@@ -3,6 +3,10 @@
 
 #include "eval.hh"
 
+#if HAVE_METALL
+#include <metall/metall.hpp>
+#endif
+
 namespace nix {
 
 /**
@@ -14,6 +18,9 @@ inline void * allocBytes(size_t n)
     void * p;
 #if HAVE_BOEHMGC
     p = GC_MALLOC(n);
+#elif HAVE_METALL
+    p = manager->allocate(n);
+    memset(p,0,n); // IMPORTANT: memory is expected to be zeroed!
 #else
     p = calloc(n, 1);
 #endif
@@ -43,7 +50,7 @@ Value * EvalState::allocValue()
 #else
     void * p = allocBytes(sizeof(Value));
 #endif
-
+/* METALL implementation not needed (see allocBytes) */
     nrValues++;
     return (Value *) p;
 }
@@ -71,6 +78,7 @@ Env & EvalState::allocEnv(size_t size)
         env = (Env *) p;
     } else
 #endif
+        /* no need for HAVE_METALL fallback since allocBytes handles it */
         env = (Env *) allocBytes(sizeof(Env) + size * sizeof(Value *));
 
     env->type = Env::Plain;
