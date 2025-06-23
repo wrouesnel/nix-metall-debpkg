@@ -333,6 +333,14 @@ if test "$metall" = yes -a "$gc" = yes; then
 fi
 AC_LANG_POP(C++)
 
+# Fix memory corruption crashes when not using the Boehm allocator by using segmented stacks
+# in boost, which fixes the problem. Probable cause is a stack-overflow in the
+# fiber context switch.
+if "$gc" = no; then
+  CFLAGS="-DBOOST_USE_SEGMENTED_STACKS"
+  CXXFLAGS="-DBOOST_USE_SEGMENTED_STACKS"
+fi
+
 # Look for nlohmann/json.
 PKG_CHECK_MODULES([NLOHMANN_JSON], [nlohmann_json >= 3.9])
 
