@@ -1,5 +1,29 @@
-nix-metall (2.18.2+metall-0) UNRELEASED; urgency=medium
+nix-metall (2.18.2+metall-0wrouesnel1) noble; urgency=medium
 
-  * Initial release.
+  [ Will Rouesnel ]
+  * Initial release (imported packages from nix on noble)
 
- -- Will Rouesnel <wrouesnel@wrouesnel.com>  Tue, 24 Jun 2025 10:39:59 +1000
+  [ Thomas Koch ]
+  * fix-service-file-path
+
+  [ Kai Harries ]
+  * Append CPPFLAGS to GLOBAL_*FLAGS, copy LDFLAGS into GLOBAL_LDFLAGS
+
+  [ Thomas Koch ]
+  * disable use of mdbook
+  * Fix build phase depending on installed binary
+  * lowdown debian package does not declare dependency on libbsd
+
+  [ Jordan Justen ]
+  * libexpr: Don't use bundled toml11
+  * configure.ac: Skip -I for RAPIDCHECK_HEADERS when not set
+  * configure.ac: Change sandbox_shell test to not be zsh specific
+  * configure.ac: Only check FEATURE_SH_STANDALONE if using busybox
+  * libexpr: Add various files to clean-files
+  * manual: Add various files to clean-files
+  * nix: Add various files to clean-files
+
+  [ Will Rouesnel ]
+  * Commit Debian 3.0 (quilt) metadata
+
+ -- Will Rouesnel <wrouesnel@wrouesnel.com>  Tue, 24 Jun 2025 14:07:58 +1000
