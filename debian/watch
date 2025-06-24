@@ -1,0 +1,2 @@
+version=4
+https://github.com/wrouesnel/nix/tags .*/v?(\d.*)+metall@ARCHIVE_EXT@

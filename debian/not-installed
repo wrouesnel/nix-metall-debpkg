@@ -1,0 +1,10 @@
+etc/init/nix-daemon.conf
+etc/profile.d/nix-daemon.sh
+etc/profile.d/nix.sh
+etc/profile.d/nix-daemon.fish
+etc/profile.d/nix.fish
+lib/tmpfiles.d/nix-daemon.conf
+usr/include/*
+usr/lib/pkgconfig/*
+lib/systemd/system/nix-daemon.service
+lib/systemd/system/nix-daemon.socket

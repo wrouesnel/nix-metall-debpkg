@@ -1,0 +1,53 @@
+nix for Debian
+--------------
+
+The access to the nix-daemon is restricted to members of the
+`nix-users` group. Therefore it is necessary to add the users that
+should be able to perform nix operations to the group `nix-users`.
+
+Setting up of the user environment is done by the systemd
+configuration files /usr/share/user-tmpfiles.d/nix-daemon.conf[1] and
+/usr/lib/environment.d/nix-daemon.conf[2]. For this to work there
+must be a user session instance of systemd running, as provided by
+the recommended package libpam-systemd.
+
+[1] http://manpages.debian.org/systemd-tmpfiles
+[2] http://manpages.debian.org/environment.d
+
+Users of other init systems must take other measures to setup the
+user environment. The packages examples file folder
+(/usr/share/doc/nix-metall-bin/examples) contains the shell recommended by the
+upstream nix project to be sourced via Xsession.d or /etc/profile.d.
+
+Note that you need to add a nix channel by yourself, e.g.:
+
+$ nix-channel --add https://nixos.org/channels/nixpkgs-unstable nixpkgs
+$ nix-channel --update
+
+Bugs
+----
+
+The Nix package-manager keeps by default all packages in the path
+`/nix/store`. In principal this path can be changed, but it would make
+it impossible to use pre-build binaries from the standard Nixpkgs
+channels [3]. The /nix folders are managed with the systemd tmpfiles.d
+[4] mechanism, see /usr/lib/tmpfiles.d/nix-daemon.conf.
+
+The problem are retained dependencies. A package keeps references to a
+package it depends on. And this references contain the absolute path
+(including `/nix/store`).
+
+Section 5.5.3 and 6.1 of the PHD thesis "The Purely Functional
+Software Deployment Model" [5] on which Nix is based gives some more
+insight.
+
+This was discussed on the debian-devel mailing list [6] and so far no
+objection was raised.
+
+[3] https://nixos.org/nix/manual/#sec-building-source
+[4] man tmpfiles.d
+[5] https://nixos.org/~eelco/pubs/phd-thesis.pdf
+[6] https://lists.debian.org/debian-devel/2019/01/msg00010.html
+
+ -- Thomas Koch <thomas@koch.ro>, Sun, 13 Mar 2022 16:48:21 +0200
+

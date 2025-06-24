@@ -1,0 +1,2 @@
+# These manual pages document subcommands of the thix command
+nix-metall-bin binary: spare-manual-page [usr/share/man/man1/nix3-*]

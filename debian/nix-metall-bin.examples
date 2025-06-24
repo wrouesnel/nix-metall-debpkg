@@ -1,0 +1,2 @@
+scripts/nix-profile.sh
+scripts/nix-profile-daemon.sh

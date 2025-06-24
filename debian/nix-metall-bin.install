@@ -1,0 +1,7 @@
+usr/bin/*
+usr/lib/nix/*
+usr/libexec/nix/build-remote
+usr/share/bash-completion/completions/nix
+usr/share/fish/vendor_completions.d/nix.fish usr/share/fish/completions
+usr/share/zsh/site-functions/_nix usr/share/zsh/vendor-completions
+usr/share/zsh/site-functions/run-help-nix usr/share/zsh/vendor-completions

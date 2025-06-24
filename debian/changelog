@@ -1,0 +1,5 @@
+nix-metall (2.18.2+metall-0) UNRELEASED; urgency=medium
+
+  * Initial release.
+
+ -- Will Rouesnel <wrouesnel@wrouesnel.com>  Tue, 24 Jun 2025 10:39:59 +1000

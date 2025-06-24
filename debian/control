@@ -1,0 +1,89 @@
+Source: nix-metall
+Section: devel
+Priority: optional
+Maintainer: Will Rouesnel <wrouesnel@wrouesnel.com>
+Build-Depends: debhelper-compat (= 13),
+               autoconf-archive,
+               bison,
+               curl,
+               flex,
+               jq,
+               libacl1-dev,
+               libarchive-dev,
+               libboost-dev,
+               libboost-context-dev,
+               libboost-filesystem-dev,
+               libboost-system-dev,
+               libboost-thread-dev,
+               libbrotli-dev,
+               libbsd-dev,
+               libbz2-dev,
+               libcpuid-dev [amd64 i386],
+               libcurl4-gnutls-dev,
+               libdbd-sqlite3-perl,
+               libgc-dev,
+               libgmock-dev,
+               libgnutls28-dev,
+               libgtest-dev,
+               libidn2-dev,
+               libkrb5-dev,
+               libldap2-dev,
+               liblowdown-dev,
+               liblz4-dev,
+               liblzma-dev,
+               libnghttp2-dev,
+               libpsl-dev,
+               librapidcheck-dev,
+               libreadline-dev,
+               librtmp-dev,
+               libseccomp-dev,
+               libssh-dev,
+               libssh2-1-dev,
+               libsodium-dev,
+               libsqlite3-dev,
+               libssl-dev,
+               libtoml11-dev,
+               libwww-curl-perl,
+               libxml2-dev,
+               libxml2-utils,
+               libzstd-dev,
+               lowdown,
+               nettle-dev,
+               nlohmann-json3-dev,
+               pkg-config,
+               zlib1g-dev,
+               libmetall-dev,
+Standards-Version: 4.6.2
+Homepage: https://nixos.org/nix
+Vcs-Browser: https://github.com/wrouesnel/nix-metall-debpkg
+Vcs-Git: https://github.com/wrouesnel/nix-metall-debpkg
+Rules-Requires-Root: no
+
+Package: nix-metall-bin
+Architecture: any
+Depends: bash-static,
+         bzip2,
+         curl,
+         libdbd-sqlite3-perl,
+         libwww-curl-perl,
+         perl,
+         xz-utils,
+         ${shlibs:Depends}, ${misc:Depends}, ${perl:Depends}
+Recommends: nix-setup-systemd
+Provides: nix-bin
+Conflicts: nix-bin
+Description: Purely functional package manager (binaries)
+ A powerful package manager for Linux and other Unix systems that
+ makes package management reliable and reproducible. Nix provides
+ atomic upgrades and rollbacks, side-by-side installation of multiple
+ versions of a package, multi-user package management and easy setup
+ of build environments.
+ .
+ NOTE: This package only provides the nix binaries. One still needs
+ to setup directories, environments variables and configuration files
+ to use nix as described in the nix manual.
+ The package nix-setup-systemd provides such a setup using systemd
+ mechanisms, also see /usr/share/doc/nix-metall-bin/README.Debian.
+ .
+ This is an alternative nix-bin implementation which is built using
+ LLNL Metall allocator to provide disk-backed allocation during evaluation.
