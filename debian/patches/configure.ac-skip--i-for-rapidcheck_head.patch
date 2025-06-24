@@ -1,0 +1,40 @@
+From: Jordan Justen <jljusten@gmail.com>
+Date: Sat, 29 Jul 2023 01:14:32 -0700
+X-Dgit-Generated: 2.18.2+metall-0 c28cf09954b395a4a477a1e8c9537c1570571343
+Subject: configure.ac: Skip -I for RAPIDCHECK_HEADERS when not set
+
+I was seeing build output which looked like:
+
+g++ -o src/libcmd/repl.o -c src/libcmd/repl.cc <snip> -I src -I -DREADLINE <snip>
+src/libcmd/repl.cc:18:10: fatal error: editline.h: No such file or directory
+   18 | #include <editline.h>
+      |          ^~~~~~~~~~~~
+compilation terminated.
+
+Notice the second -I is not followed by a path. I think this caused
+the -DREADLINE to be interpreted as the path, and therefore the
+READLINE macro wasn't defined. This lead to the incorrect
+pre-processing of src/libcmd/repl.cc.
+
+I did not test the case where the RAPIDCHECK_HEADERS variable was set.
+
+Signed-off-by: Jordan Justen <jljusten@gmail.com>
+Forwarded: https://github.com/NixOS/nix/pull/8757
+
+---
+
+diff --git a/configure.ac b/configure.ac
+index 64772b0cb..29778c276 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -300,7 +300,9 @@ AC_ARG_VAR([RAPIDCHECK_HEADERS], [include path of gtest headers shipped by RAPID
+ # No pkg-config yet, https://github.com/emil-e/rapidcheck/issues/302
+ AC_LANG_PUSH(C++)
+ AC_SUBST(RAPIDCHECK_HEADERS)
+-[CXXFLAGS="-I $RAPIDCHECK_HEADERS $CXXFLAGS"]
++if test -n "${RAPIDCHECK_HEADERS}"; then
++   [CXXFLAGS="-I $RAPIDCHECK_HEADERS $CXXFLAGS"]
++fi
+ [LIBS="-lrapidcheck -lgtest $LIBS"]
+ AC_CHECK_HEADERS([rapidcheck/gtest.h], [], [], [#include <gtest/gtest.h>])
+ dnl AC_CHECK_LIB doesn't work for C++ libs with mangled symbols

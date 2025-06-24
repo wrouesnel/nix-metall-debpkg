@@ -1,0 +1,23 @@
+From: Thomas Koch <thomas@koch.ro>
+Date: Sun, 16 Jul 2023 00:14:20 -0700
+X-Dgit-Generated: 2.18.2+metall-0 cf8be0a3064be3a7c55026b403bedb31fa5699c7
+Subject: lowdown debian package does not declare dependency on libbsd
+
+Forwarded: not-needed
+Bug: https://bugs.debian.org/1004541
+
+---
+
+diff --git a/src/libcmd/local.mk b/src/libcmd/local.mk
+index 541a7d2ba..9029af5d5 100644
+--- a/src/libcmd/local.mk
++++ b/src/libcmd/local.mk
+@@ -8,7 +8,7 @@ libcmd_SOURCES := $(wildcard $(d)/*.cc)
+ 
+ libcmd_CXXFLAGS += -I src/libutil -I src/libstore -I src/libexpr -I src/libmain -I src/libfetchers
+ 
+-libcmd_LDFLAGS = $(EDITLINE_LIBS) $(LOWDOWN_LIBS) -pthread
++libcmd_LDFLAGS = $(EDITLINE_LIBS) $(LOWDOWN_LIBS) -lbsd -pthread
+ 
+ libcmd_LIBS = libstore libutil libexpr libmain libfetchers
+ 

@@ -1,0 +1,31 @@
+From: Jordan Justen <jljusten@gmail.com>
+Date: Tue, 22 Aug 2023 15:03:11 -0700
+X-Dgit-Generated: 2.18.2+metall-0 23532b460dc7c6dd91137c6c7d275d1e645b3ede
+Subject: configure.ac: Only check FEATURE_SH_STANDALONE if using busybox
+
+For example, running bash instead of busybox produces:
+
+$ PATH= /bin/bash -c busybox 2>&1
+/bin/bash: line 1: busybox: No such file or directory
+
+Thus, the grep for "not found" fails, and configure mistakenly thinks
+that bash is busybox with the FEATURE_SH_STANDALONE set.
+
+Signed-off-by: Jordan Justen <jljusten@gmail.com>
+
+---
+
+diff --git a/configure.ac b/configure.ac
+index 6d1a9ef74..359c9c162 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -366,7 +366,8 @@ AC_CHECK_FUNCS([strsignal posix_fallocate sysconf])
+ AC_ARG_WITH(sandbox-shell, AS_HELP_STRING([--with-sandbox-shell=PATH],[path of a statically-linked shell to use as /bin/sh in sandboxes]),
+   sandbox_shell=$withval)
+ AC_SUBST(sandbox_shell)
+-if test ${cross_compiling:-no} = no && test -n "${sandbox_shell}"; then
++if test ${cross_compiling:-no} = no && test -n "${sandbox_shell}" &&
++   test -z "${sandbox_shell%%*busybox*}"; then
+   AC_MSG_CHECKING([whether sandbox-shell has the standalone feature])
+   # busybox shell sometimes allows executing other busybox applets,
+   # even if they are not in the path, breaking our sandbox

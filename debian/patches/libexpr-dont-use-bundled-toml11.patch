@@ -1,0 +1,27 @@
+From: Jordan Justen <jljusten@debian.org>
+Date: Wed, 19 Jul 2023 10:13:01 -0700
+X-Dgit-Generated: 2.18.2+metall-0 c71bb373fbf0d93c73aca23cddd0d12b1c4871b3
+Subject: libexpr: Don't use bundled toml11
+
+Instead use toml11 from distro.
+
+Forwarded: not-needed
+Bug: https://bugs.debian.org/1005879
+Bug: https://bugs.debian.org/1005880
+Signed-off-by: Jordan Justen <jljusten@debian.org>
+
+---
+
+diff --git a/src/libexpr/primops/fromTOML.cc b/src/libexpr/primops/fromTOML.cc
+index 2f4d4022e..08fbfc053 100644
+--- a/src/libexpr/primops/fromTOML.cc
++++ b/src/libexpr/primops/fromTOML.cc
+@@ -1,7 +1,7 @@
+ #include "primops.hh"
+ #include "eval-inline.hh"
+ 
+-#include "../../toml11/toml.hpp"
++#include "toml.hpp"
+ 
+ #include <sstream>
+ 

@@ -1,0 +1,28 @@
+From: Jordan Justen <jljusten@gmail.com>
+Date: Tue, 22 Aug 2023 14:44:25 -0700
+X-Dgit-Generated: 2.18.2+metall-0 9d0d412938c7d54f5318143460becb3add53b169
+Subject: configure.ac: Change sandbox_shell test to not be zsh specific
+
+The ${VAR+SUBST} seems to be specific to zsh. Adding a colon (:),
+${VAR:+SUBST} would make it posix shell compatible.
+
+But, since this test just wants to see if sandbox_shell is set, we can
+use `test -n` which tests to see if the string has a non-zero length.
+
+Signed-off-by: Jordan Justen <jljusten@gmail.com>
+
+---
+
+diff --git a/configure.ac b/configure.ac
+index 29778c276..6d1a9ef74 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -366,7 +366,7 @@ AC_CHECK_FUNCS([strsignal posix_fallocate sysconf])
+ AC_ARG_WITH(sandbox-shell, AS_HELP_STRING([--with-sandbox-shell=PATH],[path of a statically-linked shell to use as /bin/sh in sandboxes]),
+   sandbox_shell=$withval)
+ AC_SUBST(sandbox_shell)
+-if test ${cross_compiling:-no} = no && ! test -z ${sandbox_shell+x}; then
++if test ${cross_compiling:-no} = no && test -n "${sandbox_shell}"; then
+   AC_MSG_CHECKING([whether sandbox-shell has the standalone feature])
+   # busybox shell sometimes allows executing other busybox applets,
+   # even if they are not in the path, breaking our sandbox

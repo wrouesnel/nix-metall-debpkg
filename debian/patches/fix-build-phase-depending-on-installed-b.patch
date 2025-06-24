@@ -1,0 +1,90 @@
+From: Thomas Koch <thomas@koch.ro>
+Date: Sun, 16 Jul 2023 00:14:20 -0700
+X-Dgit-Generated: 2.18.2+metall-0 d5cfcc1139d1ef6d2e94180c205f523c39b51376
+Subject: Fix build phase depending on installed binary
+
+Bug: https://github.com/NixOS/nix/issues/5781
+Forwarded: https://github.com/NixOS/nix/pull/6015
+
+---
+
+diff --git a/doc/manual/local.mk b/doc/manual/local.mk
+index 0bf2c5123..00f6644f7 100644
+--- a/doc/manual/local.mk
++++ b/doc/manual/local.mk
+@@ -32,7 +32,7 @@ dummy-env = env -i \
+ 	NIX_STATE_DIR=/dummy \
+ 	NIX_CONFIG='cores = 0'
+ 
+-nix-eval = $(dummy-env) $(bindir)/nix eval --experimental-features nix-command -I nix/corepkgs=corepkgs --store dummy:// --impure --raw
++nix-eval = $(dummy-env) $(nix_DIR)/nix eval --experimental-features nix-command -I nix/corepkgs=corepkgs --store dummy:// --impure --raw
+ 
+ # re-implement mdBook's include directive to make it usable for terminal output and for proper @docroot@ substitution
+ define process-includes
+@@ -96,52 +96,52 @@ $(d)/src/SUMMARY.md: $(d)/src/SUMMARY.md.in $(d)/src/command-ref/new-cli $(d)/sr
+ 	@cp $< $@
+ 	@$(call process-includes,$@,$@)
+ 
+-$(d)/src/command-ref/new-cli: $(d)/nix.json $(d)/utils.nix $(d)/generate-manpage.nix $(bindir)/nix
++$(d)/src/command-ref/new-cli: $(d)/nix.json $(d)/utils.nix $(d)/generate-manpage.nix $(nix_DIR)/nix
+ 	@rm -rf $@ $@.tmp
+ 	$(trace-gen) $(nix-eval) --write-to $@.tmp --expr 'import doc/manual/generate-manpage.nix true (builtins.readFile $<)'
+ 	@mv $@.tmp $@
+ 
+-$(d)/src/command-ref/conf-file.md: $(d)/conf-file.json $(d)/utils.nix $(d)/src/command-ref/conf-file-prefix.md $(d)/src/command-ref/experimental-features-shortlist.md $(bindir)/nix
++$(d)/src/command-ref/conf-file.md: $(d)/conf-file.json $(d)/utils.nix $(d)/src/command-ref/conf-file-prefix.md $(d)/src/command-ref/experimental-features-shortlist.md $(nix_DIR)/nix
+ 	@cat doc/manual/src/command-ref/conf-file-prefix.md > $@.tmp
+ 	$(trace-gen) $(nix-eval) --expr '(import doc/manual/utils.nix).showSettings { inlineHTML = true; } (builtins.fromJSON (builtins.readFile $<))' >> $@.tmp;
+ 	@mv $@.tmp $@
+ 
+-$(d)/nix.json: $(bindir)/nix
+-	$(trace-gen) $(dummy-env) $(bindir)/nix __dump-cli > $@.tmp
++$(d)/nix.json: $(nix_DIR)/nix
++	$(trace-gen) $(dummy-env) $(nix_DIR)/nix __dump-cli > $@.tmp
+ 	@mv $@.tmp $@
+ 
+-$(d)/conf-file.json: $(bindir)/nix
+-	$(trace-gen) $(dummy-env) $(bindir)/nix show-config --json --experimental-features nix-command > $@.tmp
++$(d)/conf-file.json: $(nix_DIR)/nix
++	$(trace-gen) $(dummy-env) $(nix_DIR)/nix show-config --json --experimental-features nix-command > $@.tmp
+ 	@mv $@.tmp $@
+ 
+-$(d)/src/contributing/experimental-feature-descriptions.md: $(d)/xp-features.json $(d)/utils.nix $(d)/generate-xp-features.nix $(bindir)/nix
++$(d)/src/contributing/experimental-feature-descriptions.md: $(d)/xp-features.json $(d)/utils.nix $(d)/generate-xp-features.nix $(nix_DIR)/nix
+ 	@rm -rf $@ $@.tmp
+ 	$(trace-gen) $(nix-eval) --write-to $@.tmp --expr 'import doc/manual/generate-xp-features.nix (builtins.fromJSON (builtins.readFile $<))'
+ 	@mv $@.tmp $@
+ 
+-$(d)/src/command-ref/experimental-features-shortlist.md: $(d)/xp-features.json $(d)/utils.nix $(d)/generate-xp-features-shortlist.nix $(bindir)/nix
++$(d)/src/command-ref/experimental-features-shortlist.md: $(d)/xp-features.json $(d)/utils.nix $(d)/generate-xp-features-shortlist.nix $(nix_DIR)/nix
+ 	@rm -rf $@ $@.tmp
+ 	$(trace-gen) $(nix-eval) --write-to $@.tmp --expr 'import doc/manual/generate-xp-features-shortlist.nix (builtins.fromJSON (builtins.readFile $<))'
+ 	@mv $@.tmp $@
+ 
+-$(d)/xp-features.json: $(bindir)/nix
+-	$(trace-gen) $(dummy-env) NIX_PATH=nix/corepkgs=corepkgs $(bindir)/nix __dump-xp-features > $@.tmp
++$(d)/xp-features.json: $(nix_DIR)/nix
++	$(trace-gen) $(dummy-env) NIX_PATH=nix/corepkgs=corepkgs $(nix_DIR)/nix __dump-xp-features > $@.tmp
+ 	@mv $@.tmp $@
+ 
+-$(d)/src/language/builtins.md: $(d)/language.json $(d)/generate-builtins.nix $(d)/src/language/builtins-prefix.md $(bindir)/nix
++$(d)/src/language/builtins.md: $(d)/language.json $(d)/generate-builtins.nix $(d)/src/language/builtins-prefix.md $(nix_DIR)/nix
+ 	@cat doc/manual/src/language/builtins-prefix.md > $@.tmp
+ 	$(trace-gen) $(nix-eval) --expr 'import doc/manual/generate-builtins.nix (builtins.fromJSON (builtins.readFile $<)).builtins' >> $@.tmp;
+ 	@cat doc/manual/src/language/builtins-suffix.md >> $@.tmp
+ 	@mv $@.tmp $@
+ 
+-$(d)/src/language/builtin-constants.md: $(d)/language.json $(d)/generate-builtin-constants.nix $(d)/src/language/builtin-constants-prefix.md $(bindir)/nix
++$(d)/src/language/builtin-constants.md: $(d)/language.json $(d)/generate-builtin-constants.nix $(d)/src/language/builtin-constants-prefix.md $(nix_DIR)/nix
+ 	@cat doc/manual/src/language/builtin-constants-prefix.md > $@.tmp
+ 	$(trace-gen) $(nix-eval) --expr 'import doc/manual/generate-builtin-constants.nix (builtins.fromJSON (builtins.readFile $<)).constants' >> $@.tmp;
+ 	@cat doc/manual/src/language/builtin-constants-suffix.md >> $@.tmp
+ 	@mv $@.tmp $@
+ 
+-$(d)/language.json: $(bindir)/nix
+-	$(trace-gen) $(dummy-env) NIX_PATH=nix/corepkgs=corepkgs $(bindir)/nix __dump-language > $@.tmp
++$(d)/language.json: $(nix_DIR)/nix
++	$(trace-gen) $(dummy-env) NIX_PATH=nix/corepkgs=corepkgs $(nix_DIR)/nix __dump-language > $@.tmp
+ 	@mv $@.tmp $@
+ 
+ # Generate the HTML manual.

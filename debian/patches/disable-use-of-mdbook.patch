@@ -1,0 +1,56 @@
+From: Thomas Koch <thomas@koch.ro>
+Date: Sun, 16 Jul 2023 00:14:20 -0700
+X-Dgit-Generated: 2.18.2+metall-0 e27331a50d7730b7f12cbb6913ebef408151c282
+Subject: disable use of mdbook
+
+Forwarded: not-needed
+Bug-Debian: https://bugs.debian.org/1004481
+
+---
+
+diff --git a/doc/manual/local.mk b/doc/manual/local.mk
+index 826783675..0bf2c5123 100644
+--- a/doc/manual/local.mk
++++ b/doc/manual/local.mk
+@@ -174,22 +174,24 @@ doc/manual/generated/man1/nix3-manpages: $(d)/src/command-ref/new-cli
+ 	@touch $@
+ 
+ $(docdir)/manual/index.html: $(MANUAL_SRCS) $(d)/book.toml $(d)/anchors.jq $(d)/custom.css $(d)/src/SUMMARY.md $(d)/src/command-ref/new-cli $(d)/src/contributing/experimental-feature-descriptions.md $(d)/src/command-ref/conf-file.md $(d)/src/language/builtins.md $(d)/src/language/builtin-constants.md
+-	$(trace-gen) \
+-		tmp="$$(mktemp -d)"; \
+-		cp -r doc/manual "$$tmp"; \
+-		find "$$tmp" -name '*.md' | while read -r file; do \
+-			$(call process-includes,$$file,$$file); \
+-		done; \
+-		find "$$tmp" -name '*.md' | while read -r file; do \
+-			docroot="$$(realpath --relative-to="$$(dirname "$$file")" $$tmp/manual/src)"; \
+-			sed -i "s,@docroot@,$$docroot,g" "$$file"; \
+-		done; \
+-		set -euo pipefail; \
+-		RUST_LOG=warn mdbook build "$$tmp/manual" -d $(DESTDIR)$(docdir)/manual.tmp 2>&1 \
+-			| { grep -Fv "because fragment resolution isn't implemented" || :; }; \
+-		rm -rf "$$tmp/manual"
+-	@rm -rf $(DESTDIR)$(docdir)/manual
+-	@mv $(DESTDIR)$(docdir)/manual.tmp/html $(DESTDIR)$(docdir)/manual
+-	@rm -rf $(DESTDIR)$(docdir)/manual.tmp
++	# $(trace-gen) \
++	# 	tmp="$$(mktemp -d)"; \
++	# 	cp -r doc/manual "$$tmp"; \
++	# 	find "$$tmp" -name '*.md' | while read -r file; do \
++	# 		$(call process-includes,$$file,$$file); \
++	# 	done; \
++	# 	find "$$tmp" -name '*.md' | while read -r file; do \
++	# 		docroot="$$(realpath --relative-to="$$(dirname "$$file")" $$tmp/manual/src)"; \
++	# 		sed -i "s,@docroot@,$$docroot,g" "$$file"; \
++	# 	done; \
++	# 	set -euo pipefail; \
++	# 	RUST_LOG=warn mdbook build "$$tmp/manual" -d $(DESTDIR)$(docdir)/manual.tmp 2>&1 \
++	# 		| { grep -Fv "because fragment resolution isn't implemented" || :; }; \
++	# 	rm -rf "$$tmp/manual"
++	# @rm -rf $(DESTDIR)$(docdir)/manual
++	# @mv $(DESTDIR)$(docdir)/manual.tmp/html $(DESTDIR)$(docdir)/manual
++	# @rm -rf $(DESTDIR)$(docdir)/manual.tmp
++	@echo "skipping mdbook since mdbook is not yet packaged for Debian, see:"
++	@echo "https://github.com/NixOS/nixpkgs/blob/master/pkgs/tools/text/mdbook/default.nix"
+ 
+ endif

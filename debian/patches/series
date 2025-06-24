@@ -1,0 +1,12 @@
+fix-service-file-path.patch
+append-cppflags-to-global_flags-copy-ldf.patch
+disable-use-of-mdbook.patch
+fix-build-phase-depending-on-installed-b.patch
+lowdown-debian-package-does-not-declare-.patch
+libexpr-dont-use-bundled-toml11.patch
+configure.ac-skip--i-for-rapidcheck_head.patch
+configure.ac-change-sandbox_shell-test-t.patch
+configure.ac-only-check-feature_sh_stand.patch
+libexpr-add-various-files-to-clean-files.patch
+manual-add-various-files-to-clean-files.patch
+nix-add-various-files-to-clean-files.patch

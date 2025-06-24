@@ -1,0 +1,25 @@
+From: Kai Harries <kai.harries@gmail.com>
+Date: Sun, 16 Jul 2023 00:14:20 -0700
+X-Dgit-Generated: 2.18.2+metall-0 2e7f25311483b758ea01fcefdcf81813893c435f
+Subject: Append CPPFLAGS to GLOBAL_*FLAGS, copy LDFLAGS into GLOBAL_LDFLAGS
+
+I (thk@) am not sure what this patch is needed for. I guess so that Debian
+specific build options are respected?
+
+---
+
+diff --git a/Makefile b/Makefile
+index 41c0ab68a..09d98249d 100644
+--- a/Makefile
++++ b/Makefile
+@@ -48,6 +48,10 @@ else
+   GLOBAL_CXXFLAGS += -O0 -U_FORTIFY_SOURCE
+ endif
+ 
++GLOBAL_CFLAGS   += $(CPPFLAGS)
++GLOBAL_CXXFLAGS += $(CPPFLAGS)
++GLOBAL_LDFLAGS  += $(LDFLAGS)
++
+ include mk/lib.mk
+ 
+ GLOBAL_CXXFLAGS += -g -Wall -include config.h -std=c++2a -I src
