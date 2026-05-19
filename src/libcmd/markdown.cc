@@ -19,9 +19,9 @@ std::string renderMarkdownToTerminal(std::string_view markdown)
 
     struct lowdown_opts opts {
         .type = LOWDOWN_TERM,
+        .term = opts_term,
         .maxdepth = 20,
         .feat = LOWDOWN_COMMONMARK | LOWDOWN_FENCED | LOWDOWN_DEFLIST | LOWDOWN_TABLES,
-        .term = opts_term,
         .oflags = LOWDOWN_TERM_NOLINK,
     };
 

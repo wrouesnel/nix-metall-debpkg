@@ -1,0 +1,34 @@
+From: Will Rouesnel <wrouesnel@wrouesnel.com>
+Date: Wed, 20 May 2026 00:51:13 +1000
+Subject: Fix lowdown interface
+
+[git-debrebase split: mixed commit: upstream part]
+---
+ src/libcmd/markdown.cc | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/libcmd/markdown.cc b/src/libcmd/markdown.cc
+index 668a077..fbf1107 100644
+--- a/src/libcmd/markdown.cc
++++ b/src/libcmd/markdown.cc
+@@ -11,13 +11,17 @@ std::string renderMarkdownToTerminal(std::string_view markdown)
+ {
+     int windowWidth = getWindowSize().second;
+ 
+-    struct lowdown_opts opts {
+-        .type = LOWDOWN_TERM,
+-        .maxdepth = 20,
++    struct lowdown_opts_term opts_term {
+         .cols = (size_t) std::max(windowWidth - 5, 60),
+         .hmargin = 0,
+         .vmargin = 0,
++    };
++
++    struct lowdown_opts opts {
++        .type = LOWDOWN_TERM,
++        .maxdepth = 20,
+         .feat = LOWDOWN_COMMONMARK | LOWDOWN_FENCED | LOWDOWN_DEFLIST | LOWDOWN_TABLES,
++        .term = opts_term,
+         .oflags = LOWDOWN_TERM_NOLINK,
+     };
+ 

@@ -1,0 +1,23 @@
+From: Thomas Koch <thomas@koch.ro>
+Date: Sun, 16 Jul 2023 00:14:20 -0700
+Subject: fix-service-file-path
+
+Install systemd units into /lib instead of /usr/lib
+---
+ misc/systemd/local.mk | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/misc/systemd/local.mk b/misc/systemd/local.mk
+index 76121a0..a931269 100644
+--- a/misc/systemd/local.mk
++++ b/misc/systemd/local.mk
+@@ -1,7 +1,7 @@
+ ifdef HOST_LINUX
+ 
+-  $(foreach n, nix-daemon.socket nix-daemon.service, $(eval $(call install-file-in, $(d)/$(n), $(prefix)/lib/systemd/system, 0644)))
+-  $(foreach n, nix-daemon.conf, $(eval $(call install-file-in, $(d)/$(n), $(prefix)/lib/tmpfiles.d, 0644)))
++  $(foreach n, nix-daemon.socket nix-daemon.service, $(eval $(call install-file-in, $(d)/$(n), /lib/systemd/system, 0644)))
++  $(foreach n, nix-daemon.conf, $(eval $(call install-file-in, $(d)/$(n), /lib/tmpfiles.d, 0644)))
+ 
+   clean-files += $(d)/nix-daemon.socket $(d)/nix-daemon.service $(d)/nix-daemon.conf
+ 
