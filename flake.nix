@@ -173,7 +173,14 @@
             boost
             lowdown-nix
           ]
-          ++ lib.optionals stdenv.isLinux [libseccomp]
+          ++ lib.optionals stdenv.isDarwin [darwin.apple_sdk.libs.sandbox]
+          ++ lib.optionals stdenv.isLinux [(libseccomp.overrideAttrs (_: rec {
+            version = "2.5.5";
+            src = fetchurl {
+              url = "https://github.com/seccomp/libseccomp/releases/download/v${version}/libseccomp-${version}.tar.gz";
+              hash = "sha256-JIosik2bmFiqa69ScSw0r+/PnJ6Ut23OAsHJqiX7M3U=";
+            };
+          }))]
           ++ lib.optional (stdenv.isLinux || stdenv.isDarwin) libsodium
           ++ lib.optional stdenv.hostPlatform.isx86_64 libcpuid;
 
@@ -461,7 +468,8 @@
                   boost
                 ]
                 ++ lib.optional (currentStdenv.isLinux || currentStdenv.isDarwin) libsodium
-                ++ lib.optional currentStdenv.isDarwin darwin.apple_sdk.frameworks.Security;
+                ++ lib.optional currentStdenv.isDarwin darwin.apple_sdk.frameworks.Security
+                ++ lib.optional stdenv.hostPlatform.isDarwin darwin.apple_sdk.libs.sandbox;
 
               configureFlags = [
                 "--with-dbi=${perlPackages.DBI}/${pkgs.perl.libPrefix}"
@@ -550,7 +558,7 @@
         # tarball for the user's system and calls the second half of the
         # installation script.
         installerScript = installScriptFor [ "x86_64-linux" "i686-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" "armv6l-linux" "armv7l-linux" ];
-        installerScriptForGHA = installScriptFor [ "x86_64-linux" "x86_64-darwin" "armv6l-linux" "armv7l-linux"];
+        installerScriptForGHA = installScriptFor [ "x86_64-linux" "aarch64-darwin" "armv6l-linux" "armv7l-linux"];
 
         # docker image with Nix inside
         dockerImage = lib.genAttrs linux64BitSystems (system: self.packages.${system}.dockerImage);
@@ -614,6 +622,8 @@
         # System tests.
         tests.authorization = runNixOSTestFor "x86_64-linux" ./tests/nixos/authorization.nix;
 
+        tests.fetchurl = runNixOSTestFor "x86_64-linux" ./tests/nixos/fetchurl.nix;
+
         tests.remoteBuilds = runNixOSTestFor "x86_64-linux" ./tests/nixos/remote-builds.nix;
 
         tests.nix-copy-closure = runNixOSTestFor "x86_64-linux" ./tests/nixos/nix-copy-closure.nix;
@@ -635,6 +645,8 @@
           (system: runNixOSTestFor system ./tests/nixos/setuid.nix);
 
         tests.ca-fd-leak = runNixOSTestFor "x86_64-linux" ./tests/nixos/ca-fd-leak;
+
+        tests.user-sandboxing = runNixOSTestFor "x86_64-linux" ./tests/nixos/user-sandboxing;
 
 
         # Make sure that nix-env still produces the exact same result

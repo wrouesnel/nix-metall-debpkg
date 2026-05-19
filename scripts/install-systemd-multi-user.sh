@@ -3,6 +3,11 @@
 set -eu
 set -o pipefail
 
+# System specific settings
+export NIX_FIRST_BUILD_UID="${NIX_FIRST_BUILD_UID:-30001}"
+export NIX_BUILD_GROUP_ID="${NIX_BUILD_GROUP_ID:-30000}"
+export NIX_BUILD_USER_NAME_TEMPLATE="nixbld%d"
+
 readonly SERVICE_SRC=/lib/systemd/system/nix-daemon.service
 readonly SERVICE_DEST=/etc/systemd/system/nix-daemon.service
 

@@ -23,11 +23,12 @@ readonly RED='\033[31m'
 # installer allows overriding build user count to speed up installation
 # as creating each user takes non-trivial amount of time on macos
 readonly NIX_USER_COUNT=${NIX_USER_COUNT:-32}
-readonly NIX_BUILD_GROUP_ID="${NIX_BUILD_GROUP_ID:-30000}"
 readonly NIX_BUILD_GROUP_NAME="nixbld"
-# darwin installer needs to override these
-NIX_FIRST_BUILD_UID="${NIX_FIRST_BUILD_UID:-30001}"
-NIX_BUILD_USER_NAME_TEMPLATE="nixbld%d"
+# each system specific installer must set these:
+#   NIX_FIRST_BUILD_UID
+#   NIX_BUILD_GROUP_ID
+#   NIX_BUILD_USER_NAME_TEMPLATE
+
 # Please don't change this. We don't support it, because the
 # default shell profile that comes with Nix doesn't support it.
 readonly NIX_ROOT="/nix"
@@ -522,9 +523,7 @@ It seems the build group $NIX_BUILD_GROUP_NAME already exists, but
 with the UID $primary_group_id. This script can't really handle
 that right now, so I'm going to give up.
 
-You can fix this by editing this script and changing the
-NIX_BUILD_GROUP_ID variable near the top to from $NIX_BUILD_GROUP_ID
-to $primary_group_id and re-run.
+You can export NIX_BUILD_GROUP_ID=$primary_group_id and re-run.
 EOF
         else
             row "            Exists" "Yes"
@@ -699,6 +698,12 @@ EOF
     fi
 }
 
+check_required_system_specific_settings() {
+    if [ -z "${NIX_FIRST_BUILD_UID+x}" ] || [ -z "${NIX_BUILD_USER_NAME_TEMPLATE+x}" ]; then
+        failure "Internal error: System specific installer for $(uname) ($1) does not export required settings."
+    fi
+}
+
 welcome_to_nix() {
     local -r NIX_UID_RANGES="${NIX_FIRST_BUILD_UID}..$((NIX_FIRST_BUILD_UID + NIX_USER_COUNT - 1))"
     local -r RANGE_TEXT=$(echo -ne "${BLUE}(uids [${NIX_UID_RANGES}])${ESC}")
@@ -718,7 +723,9 @@ manager. This will happen in a few stages:
    if you are ready to continue.
 
 3. Create the system users ${RANGE_TEXT} and groups ${GROUP_TEXT}
-   that the Nix daemon uses to run builds.
+   that the Nix daemon uses to run builds. To create system users
+   in a different range, exit and run this tool again with
+   NIX_FIRST_BUILD_UID set.
 
 4. Perform the basic installation of the Nix files daemon.
 
@@ -960,12 +967,15 @@ main() {
     if is_os_darwin; then
         # shellcheck source=./install-darwin-multi-user.sh
         . "$EXTRACTED_NIX_PATH/install-darwin-multi-user.sh"
+        check_required_system_specific_settings "install-darwin-multi-user.sh"
     elif is_os_linux; then
         # shellcheck source=./install-systemd-multi-user.sh
         . "$EXTRACTED_NIX_PATH/install-systemd-multi-user.sh" # most of this works on non-systemd distros also
+        check_required_system_specific_settings "install-systemd-multi-user.sh"
     else
         failure "Sorry, I don't know what to do on $(uname)"
     fi
+
 
     welcome_to_nix
 

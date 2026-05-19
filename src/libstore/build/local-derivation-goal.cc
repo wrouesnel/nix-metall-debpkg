@@ -16,6 +16,7 @@
 #include "cgroup.hh"
 #include "personality.hh"
 #include "namespaces.hh"
+#include "file-system.hh"
 
 #include <regex>
 #include <queue>
@@ -35,6 +36,7 @@
 /* Includes required for chroot support. */
 #if __linux__
 #include <sys/ioctl.h>
+#include "linux/fchmodat2-compat.hh"
 #include <net/if.h>
 #include <netinet/ip.h>
 #include <sys/mman.h>
@@ -51,6 +53,10 @@
 #if __APPLE__
 #include <spawn.h>
 #include <sys/sysctl.h>
+#include <sandbox.h>
+
+/* This definition is undocumented but depended upon by all major browsers. */
+extern "C" int sandbox_init_with_parameters(const char *profile, uint64_t flags, const char *const parameters[], char **errorbuf);
 #endif
 
 #include <pwd.h>
@@ -170,6 +176,10 @@ void LocalDerivationGoal::killSandbox(bool getStats)
 
 void LocalDerivationGoal::tryLocalBuild()
 {
+#if __APPLE__
+    additionalSandboxProfile = parsedDrv->getStringAttr("__sandboxProfile").value_or("");
+#endif
+
     unsigned int curBuilds = worker.getNrLocalBuilds();
     if (curBuilds >= settings.maxBuildJobs) {
         state = &DerivationGoal::tryToBuild;
@@ -476,14 +486,26 @@ void LocalDerivationGoal::startBuilder()
             settings.thisSystem,
             concatStringsSep<StringSet>(", ", worker.store.systemFeatures));
 
-#if __APPLE__
-    additionalSandboxProfile = parsedDrv->getStringAttr("__sandboxProfile").value_or("");
-#endif
-
     /* Create a temporary directory where the build will take
        place. */
-    tmpDir = createTempDir("", "nix-build-" + std::string(drvPath.name()), false, false, 0700);
+    topTmpDir = createTempDir("", "nix-build-" + std::string(drvPath.name()), false, false, 0700);
+#if __APPLE__
+    if (false) {
+#else
+    if (useChroot) {
+#endif
+        /* If sandboxing is enabled, put the actual TMPDIR underneath
+           an inaccessible root-owned directory, to prevent outside
+           access.
 
+           On macOS, we don't use an actual chroot, so this isn't
+           possible. Any mitigation along these lines would have to be
+           done directly in the sandbox profile. */
+        tmpDir = topTmpDir + "/build";
+        createDir(tmpDir, 0700);
+    } else {
+        tmpDir = topTmpDir;
+    }
     chownToBuilder(tmpDir);
 
     for (auto & [outputName, status] : initialOutputs) {
@@ -649,17 +671,21 @@ void LocalDerivationGoal::startBuilder()
 #if __linux__
         /* Create a temporary directory in which we set up the chroot
            environment using bind-mounts.  We put it in the Nix store
-           to ensure that we can create hard-links to non-directory
-           inputs in the fake Nix store in the chroot (see below). */
-        chrootRootDir = worker.store.Store::toRealPath(drvPath) + ".chroot";
-        deletePath(chrootRootDir);
+           so that the build outputs can be moved efficiently from the
+           chroot to their final location. */
+        chrootParentDir = worker.store.Store::toRealPath(drvPath) + ".chroot";
+        deletePath(chrootParentDir);
 
         /* Clean up the chroot directory automatically. */
-        autoDelChroot = std::make_shared<AutoDelete>(chrootRootDir);
+        autoDelChroot = std::make_shared<AutoDelete>(chrootParentDir);
 
-        printMsg(lvlChatty, "setting up chroot environment in '%1%'", chrootRootDir);
+        printMsg(lvlChatty, "setting up chroot environment in '%1%'", chrootParentDir);
 
-        // FIXME: make this 0700
+        if (mkdir(chrootParentDir.c_str(), 0700) == -1)
+            throw SysError("cannot create '%s'", chrootRootDir);
+
+        chrootRootDir = chrootParentDir + "/root";
+
         if (mkdir(chrootRootDir.c_str(), buildUser && buildUser->getUIDCount() != 1 ? 0755 : 0750) == -1)
             throw SysError("cannot create '%1%'", chrootRootDir);
 
@@ -1662,6 +1688,10 @@ void setupSeccomp()
         if (seccomp_rule_add(ctx, SCMP_ACT_ERRNO(EPERM), SCMP_SYS(fchmodat), 1,
                 SCMP_A2(SCMP_CMP_MASKED_EQ, (scmp_datum_t) perm, (scmp_datum_t) perm)) != 0)
             throw SysError("unable to add seccomp rule");
+
+        if (seccomp_rule_add(ctx, SCMP_ACT_ERRNO(EPERM), NIX_SYSCALL_FCHMODAT2, 1,
+                SCMP_A2(SCMP_CMP_MASKED_EQ, (scmp_datum_t) perm, (scmp_datum_t) perm)) != 0)
+            throw SysError("unable to add seccomp rule");
     }
 
     /* Prevent builders from creating EAs or ACLs. Not all filesystems
@@ -1705,13 +1735,20 @@ void LocalDerivationGoal::runChild()
 
         bool setUser = true;
 
-        /* Make the contents of netrc available to builtin:fetchurl
-           (which may run under a different uid and/or in a sandbox). */
+        /* Make the contents of netrc and the CA certificate bundle
+           available to builtin:fetchurl (which may run under a
+           different uid and/or in a sandbox). */
         std::string netrcData;
-        try {
-            if (drv->isBuiltin() && drv->builder == "builtin:fetchurl")
-                netrcData = readFile(settings.netrcFile);
-        } catch (SysError &) { }
+        std::string caFileData;
+        if (drv->isBuiltin() && drv->builder == "builtin:fetchurl") {
+           try {
+               netrcData = readFile(settings.netrcFile);
+           } catch (SysError &) { }
+
+           try {
+               caFileData = readFile(settings.caFile);
+           } catch (SysError &) { }
+        }
 
 #if __linux__
         if (useChroot) {
@@ -1996,152 +2033,129 @@ void LocalDerivationGoal::runChild()
                 throw SysError("setuid failed");
         }
 
-        /* Fill in the arguments. */
-        Strings args;
-
-        std::string builder = "invalid";
-
-        if (drv->isBuiltin()) {
-            ;
-        }
 #if __APPLE__
-        else {
-            /* This has to appear before import statements. */
-            std::string sandboxProfile = "(version 1)\n";
+        /* This has to appear before import statements. */
+        std::string sandboxProfile = "(version 1)\n";
 
-            if (useChroot) {
+        if (useChroot) {
 
-                /* Lots and lots and lots of file functions freak out if they can't stat their full ancestry */
-                PathSet ancestry;
+            /* Lots and lots and lots of file functions freak out if they can't stat their full ancestry */
+            PathSet ancestry;
 
-                /* We build the ancestry before adding all inputPaths to the store because we know they'll
-                   all have the same parents (the store), and there might be lots of inputs. This isn't
-                   particularly efficient... I doubt it'll be a bottleneck in practice */
-                for (auto & i : dirsInChroot) {
-                    Path cur = i.first;
-                    while (cur.compare("/") != 0) {
-                        cur = dirOf(cur);
-                        ancestry.insert(cur);
-                    }
-                }
-
-                /* And we want the store in there regardless of how empty dirsInChroot. We include the innermost
-                   path component this time, since it's typically /nix/store and we care about that. */
-                Path cur = worker.store.storeDir;
+            /* We build the ancestry before adding all inputPaths to the store because we know they'll
+                all have the same parents (the store), and there might be lots of inputs. This isn't
+                particularly efficient... I doubt it'll be a bottleneck in practice */
+            for (auto & i : dirsInChroot) {
+                Path cur = i.first;
                 while (cur.compare("/") != 0) {
-                    ancestry.insert(cur);
                     cur = dirOf(cur);
+                    ancestry.insert(cur);
                 }
+            }
 
-                /* Add all our input paths to the chroot */
-                for (auto & i : inputPaths) {
-                    auto p = worker.store.printStorePath(i);
-                    dirsInChroot[p] = p;
-                }
+            /* And we want the store in there regardless of how empty dirsInChroot. We include the innermost
+                path component this time, since it's typically /nix/store and we care about that. */
+            Path cur = worker.store.storeDir;
+            while (cur.compare("/") != 0) {
+                ancestry.insert(cur);
+                cur = dirOf(cur);
+            }
 
-                /* Violations will go to the syslog if you set this. Unfortunately the destination does not appear to be configurable */
-                if (settings.darwinLogSandboxViolations) {
-                    sandboxProfile += "(deny default)\n";
-                } else {
-                    sandboxProfile += "(deny default (with no-log))\n";
-                }
+            /* Add all our input paths to the chroot */
+            for (auto & i : inputPaths) {
+                auto p = worker.store.printStorePath(i);
+                dirsInChroot[p] = p;
+            }
 
-                sandboxProfile +=
-                    #include "sandbox-defaults.sb"
-                    ;
-
-                if (!derivationType->isSandboxed())
-                    sandboxProfile +=
-                        #include "sandbox-network.sb"
-                        ;
-
-                /* Add the output paths we'll use at build-time to the chroot */
-                sandboxProfile += "(allow file-read* file-write* process-exec\n";
-                for (auto & [_, path] : scratchOutputs)
-                    sandboxProfile += fmt("\t(subpath \"%s\")\n", worker.store.printStorePath(path));
-
-                sandboxProfile += ")\n";
-
-                /* Our inputs (transitive dependencies and any impurities computed above)
-
-                   without file-write* allowed, access() incorrectly returns EPERM
-                 */
-                sandboxProfile += "(allow file-read* file-write* process-exec\n";
-                for (auto & i : dirsInChroot) {
-                    if (i.first != i.second.source)
-                        throw Error(
-                            "can't map '%1%' to '%2%': mismatched impure paths not supported on Darwin",
-                            i.first, i.second.source);
-
-                    std::string path = i.first;
-                    struct stat st;
-                    if (lstat(path.c_str(), &st)) {
-                        if (i.second.optional && errno == ENOENT)
-                            continue;
-                        throw SysError("getting attributes of path '%s", path);
-                    }
-                    if (S_ISDIR(st.st_mode))
-                        sandboxProfile += fmt("\t(subpath \"%s\")\n", path);
-                    else
-                        sandboxProfile += fmt("\t(literal \"%s\")\n", path);
-                }
-                sandboxProfile += ")\n";
-
-                /* Allow file-read* on full directory hierarchy to self. Allows realpath() */
-                sandboxProfile += "(allow file-read*\n";
-                for (auto & i : ancestry) {
-                    sandboxProfile += fmt("\t(literal \"%s\")\n", i);
-                }
-                sandboxProfile += ")\n";
-
-                sandboxProfile += additionalSandboxProfile;
-            } else
-                sandboxProfile +=
-                    #include "sandbox-minimal.sb"
-                    ;
-
-            debug("Generated sandbox profile:");
-            debug(sandboxProfile);
-
-            Path sandboxFile = tmpDir + "/.sandbox.sb";
-
-            writeFile(sandboxFile, sandboxProfile);
-
-            bool allowLocalNetworking = parsedDrv->getBoolAttr("__darwinAllowLocalNetworking");
-
-            /* The tmpDir in scope points at the temporary build directory for our derivation. Some packages try different mechanisms
-               to find temporary directories, so we want to open up a broader place for them to dump their files, if needed. */
-            Path globalTmpDir = canonPath(getEnvNonEmpty("TMPDIR").value_or("/tmp"), true);
-
-            /* They don't like trailing slashes on subpath directives */
-            if (globalTmpDir.back() == '/') globalTmpDir.pop_back();
-
-            if (getEnv("_NIX_TEST_NO_SANDBOX") != "1") {
-                builder = "/usr/bin/sandbox-exec";
-                args.push_back("sandbox-exec");
-                args.push_back("-f");
-                args.push_back(sandboxFile);
-                args.push_back("-D");
-                args.push_back("_GLOBAL_TMP_DIR=" + globalTmpDir);
-                if (allowLocalNetworking) {
-                    args.push_back("-D");
-                    args.push_back(std::string("_ALLOW_LOCAL_NETWORKING=1"));
-                }
-                args.push_back(drv->builder);
+            /* Violations will go to the syslog if you set this. Unfortunately the destination does not appear to be configurable */
+            if (settings.darwinLogSandboxViolations) {
+                sandboxProfile += "(deny default)\n";
             } else {
-                builder = drv->builder;
-                args.push_back(std::string(baseNameOf(drv->builder)));
+                sandboxProfile += "(deny default (with no-log))\n";
+            }
+
+            sandboxProfile +=
+                #include "sandbox-defaults.sb"
+                ;
+
+            if (!derivationType->isSandboxed())
+                sandboxProfile +=
+                    #include "sandbox-network.sb"
+                    ;
+
+            /* Add the output paths we'll use at build-time to the chroot */
+            sandboxProfile += "(allow file-read* file-write* process-exec\n";
+            for (auto & [_, path] : scratchOutputs)
+                sandboxProfile += fmt("\t(subpath \"%s\")\n", worker.store.printStorePath(path));
+
+            sandboxProfile += ")\n";
+
+            /* Our inputs (transitive dependencies and any impurities computed above)
+
+                without file-write* allowed, access() incorrectly returns EPERM
+                */
+            sandboxProfile += "(allow file-read* file-write* process-exec\n";
+            for (auto & i : dirsInChroot) {
+                if (i.first != i.second.source)
+                    throw Error(
+                        "can't map '%1%' to '%2%': mismatched impure paths not supported on Darwin",
+                        i.first, i.second.source);
+
+                std::string path = i.first;
+                struct stat st;
+                if (lstat(path.c_str(), &st)) {
+                    if (i.second.optional && errno == ENOENT)
+                        continue;
+                    throw SysError("getting attributes of path '%s", path);
+                }
+                if (S_ISDIR(st.st_mode))
+                    sandboxProfile += fmt("\t(subpath \"%s\")\n", path);
+                else
+                    sandboxProfile += fmt("\t(literal \"%s\")\n", path);
+            }
+            sandboxProfile += ")\n";
+
+            /* Allow file-read* on full directory hierarchy to self. Allows realpath() */
+            sandboxProfile += "(allow file-read*\n";
+            for (auto & i : ancestry) {
+                sandboxProfile += fmt("\t(literal \"%s\")\n", i);
+            }
+            sandboxProfile += ")\n";
+
+            sandboxProfile += additionalSandboxProfile;
+        } else
+            sandboxProfile +=
+                #include "sandbox-minimal.sb"
+                ;
+
+        debug("Generated sandbox profile:");
+        debug(sandboxProfile);
+
+        bool allowLocalNetworking = parsedDrv->getBoolAttr("__darwinAllowLocalNetworking");
+
+        /* The tmpDir in scope points at the temporary build directory for our derivation. Some packages try different mechanisms
+            to find temporary directories, so we want to open up a broader place for them to dump their files, if needed. */
+        Path globalTmpDir = canonPath(defaultTempDir(), true);
+
+        /* They don't like trailing slashes on subpath directives */
+        while (!globalTmpDir.empty() && globalTmpDir.back() == '/')
+            globalTmpDir.pop_back();
+
+        if (getEnv("_NIX_TEST_NO_SANDBOX") != "1") {
+            Strings sandboxArgs;
+            sandboxArgs.push_back("_GLOBAL_TMP_DIR");
+            sandboxArgs.push_back(globalTmpDir);
+            if (allowLocalNetworking) {
+                sandboxArgs.push_back("_ALLOW_LOCAL_NETWORKING");
+                sandboxArgs.push_back("1");
+            }
+            char * sandbox_errbuf = nullptr;
+            if (sandbox_init_with_parameters(sandboxProfile.c_str(), 0, stringsToCharPtrs(sandboxArgs).data(), &sandbox_errbuf)) {
+                writeFull(STDERR_FILENO, fmt("failed to configure sandbox: %s\n", sandbox_errbuf ? sandbox_errbuf : "(null)"));
+                _exit(1);
             }
         }
-#else
-        else {
-            builder = drv->builder;
-            args.push_back(std::string(baseNameOf(drv->builder)));
-        }
 #endif
-
-        for (auto & i : drv->args)
-            args.push_back(rewriteStrings(i, inputRewrites));
 
         /* Indicate that we managed to set up the build environment. */
         writeFull(STDERR_FILENO, std::string("\2\n"));
@@ -2158,7 +2172,7 @@ void LocalDerivationGoal::runChild()
                     e.second = rewriteStrings(e.second, inputRewrites);
 
                 if (drv->builder == "builtin:fetchurl")
-                    builtinFetchurl(drv2, netrcData);
+                    builtinFetchurl(drv2, netrcData, caFileData);
                 else if (drv->builder == "builtin:buildenv")
                     builtinBuildenv(drv2);
                 else if (drv->builder == "builtin:unpack-channel")
@@ -2171,6 +2185,14 @@ void LocalDerivationGoal::runChild()
                 _exit(1);
             }
         }
+
+        // Now builder is not builtin
+
+        Strings args;
+        args.push_back(std::string(baseNameOf(drv->builder)));
+
+        for (auto & i : drv->args)
+            args.push_back(rewriteStrings(i, inputRewrites));
 
 #if __APPLE__
         posix_spawnattr_t attrp;
@@ -2193,9 +2215,9 @@ void LocalDerivationGoal::runChild()
             posix_spawnattr_setbinpref_np(&attrp, 1, &cpu, NULL);
         }
 
-        posix_spawn(NULL, builder.c_str(), NULL, &attrp, stringsToCharPtrs(args).data(), stringsToCharPtrs(envStrs).data());
+        posix_spawn(NULL, drv->builder.c_str(), NULL, &attrp, stringsToCharPtrs(args).data(), stringsToCharPtrs(envStrs).data());
 #else
-        execve(builder.c_str(), stringsToCharPtrs(args).data(), stringsToCharPtrs(envStrs).data());
+        execve(drv->builder.c_str(), stringsToCharPtrs(args).data(), stringsToCharPtrs(envStrs).data());
 #endif
 
         throw SysError("executing '%1%'", drv->builder);
@@ -2940,15 +2962,17 @@ void LocalDerivationGoal::checkOutputs(const std::map<std::string, ValidPathInfo
 
 void LocalDerivationGoal::deleteTmpDir(bool force)
 {
-    if (tmpDir != "") {
+    if (topTmpDir != "") {
         /* Don't keep temporary directories for builtins because they
            might have privileged stuff (like a copy of netrc). */
         if (settings.keepFailed && !force && !drv->isBuiltin()) {
             printError("note: keeping build directory '%s'", tmpDir);
+            chmod(topTmpDir.c_str(), 0755);
             chmod(tmpDir.c_str(), 0755);
         }
         else
-            deletePath(tmpDir);
+            deletePath(topTmpDir);
+        topTmpDir = "";
         tmpDir = "";
     }
 }
