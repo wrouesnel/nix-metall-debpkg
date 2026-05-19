@@ -1,3 +1,9 @@
+nix-metall (2.18.9+metall-1) UNRELEASED; urgency=medium
+
+  * Update to new upstream version 2.18.9+metall.
+
+ -- Will Rouesnel <wrouesnel@wrouesnel.com>  Tue, 19 May 2026 21:35:26 +1000
+
 nix-metall (2.18.2+metall-0wrouesnel1) noble; urgency=medium
 
   [ Will Rouesnel ]
