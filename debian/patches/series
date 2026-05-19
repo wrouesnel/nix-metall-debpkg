@@ -1,0 +1,12 @@
+0001-fix-service-file-path.patch
+0002-Append-CPPFLAGS-to-GLOBAL_-FLAGS-copy-LDFLAGS-into-G.patch
+0003-disable-use-of-mdbook.patch
+0004-Fix-build-phase-depending-on-installed-binary.patch
+0005-lowdown-debian-package-does-not-declare-dependency-o.patch
+0006-libexpr-Don-t-use-bundled-toml11.patch
+0007-configure.ac-Skip-I-for-RAPIDCHECK_HEADERS-when-not-.patch
+0008-configure.ac-Change-sandbox_shell-test-to-not-be-zsh.patch
+0009-configure.ac-Only-check-FEATURE_SH_STANDALONE-if-usi.patch
+0010-libexpr-Add-various-files-to-clean-files.patch
+0011-manual-Add-various-files-to-clean-files.patch
+0012-nix-Add-various-files-to-clean-files.patch
