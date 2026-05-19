@@ -1,4 +1,4 @@
-nix-metall (2.18.9+metall-1) noble; urgency=medium
+nix-metall (2.18.9+metall-1~resolute) resolute; urgency=medium
 
   * Update to new upstream version 2.18.9+metall.
 
